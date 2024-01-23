@@ -1,0 +1,146 @@
+     1  0000: 02 01 00      LJMP START
+     2  0100:               ORG 100H
+     3  0100:           START:
+     4  0100: 12 81 0C      LCALL LCD_CLR
+     5                      ;piersza liczba 
+     6  0103: 12 01 89      LCALL LICZBA12
+     7  0106: C0 00         PUSH 00
+     8                      ; zapisz znak na stosie i wyswietl operacje
+     9  0108: 12 81 1C      LCALL WAIT_KEY
+    10  010B: C0 E0         PUSH ACC 
+    11                      ;wybieranie operacji i wyswietlenie znaku operacji
+    12  010D: B4 0A 04      CJNE A,#10,SUB
+    13  0110: 74 2B         MOV A,#'+'
+    14  0112: 80 10         SJMP SIGN
+    15  0114:           SUB:
+    16  0114: B4 0B 04      CJNE A,#11,MUL
+    17  0117: 74 2D         MOV A,#'-'
+    18  0119: 80 09         SJMP SIGN
+    19  011B:           MUL:
+    20  011B: B4 0C 04      CJNE A,#12,DIV
+    21  011E: 74 2A         MOV A,#'*'
+    22  0120: 80 02         SJMP SIGN
+    23  0122:           DIV:
+    24  0122: 74 2F         MOV A,#'/'
+    25  0124:           SIGN: 
+    26                      ;zapis na ekranie wybranego znaku operacji 
+    27  0124: 12 81 02      LCALL WRITE_DATA
+    28                      ;druga liczba 
+    29  0127: 12 01 89      LCALL LICZBA12
+    30  012A: C0 00         PUSH 00
+    31                      ;wyswietlenie znaku '='
+    32  012C: 74 3D         MOV A,#'='
+    33  012E: 12 81 02      LCALL WRITE_DATA
+    34                      ;zamiana stosu- aby A bylo na gorze a B na dole (np:A+B)
+    35  0131: D0 F0         POP B
+    36  0133: D0 E0         POP ACC ; do akumulaotr rodzaj obliczen
+    37  0135: C0 F0         PUSH B
+    38                      ;obliczenie wyniku, ACC=A+,B-,C*,D/
+    39  0137: B4 0A 08      CJNE A,#10,SUB_ARTM
+    40  013A: D0 F0         POP B
+    41  013C: D0 E0         POP ACC
+    42  013E: 25 F0         ADD A,B
+    43  0140: 80 42         SJMP RESULT
+    44  0142:           SUB_ARTM:
+    45  0142: B4 0B 1C      CJNE A,#11,MUL_ARTM
+    46  0145: D0 F0         POP B
+    47  0147: D0 E0         POP ACC
+    48  0149: C3            CLR C
+    49  014A: 95 F0         SUBB A,B
+    50  014C: 40 02         JC MINUS_NUMBER
+    51  014E: 80 34         SJMP RESULT
+    52  0150:           MINUS_NUMBER: 
+    53                      ;wyswietlenie znaku '-'
+    54  0150: C0 E0         PUSH ACC
+    55  0152: 74 2D         MOV A,#'-'
+    56  0154: 12 81 02      LCALL WRITE_DATA
+    57                      ;zamiana z U2 na wartość bezwzgledną
+    58  0157: D0 E0         POP ACC
+    59  0159: F4            CPL A
+    60  015A: 75 F0 01      MOV B,#1
+    61  015D: 25 F0         ADD A,B
+    62  015F: 80 23         SJMP RESULT
+    63  0161:           MUL_ARTM:
+    64  0161: B4 0C 07      CJNE A,#12,DIV_ARTM
+    65  0164: D0 F0         POP B
+    66  0166: D0 E0         POP ACC
+    67  0168: A4            MUL AB
+    68                  
+    69  0169: 80 19         SJMP RESULT
+    70  016B:           DIV_ARTM:
+    71  016B: D0 E0         POP ACC
+    72  016D: B4 00 05      CJNE A,#0,NO_ZERO_DIV
+    73  0170: 12 01 C6      LCALL ZERO_DIV
+    74  0173: 80 FE         SJMP $
+    75  0175:           NO_ZERO_DIV:
+    76  0175: D0 E0         POP ACC
+    77  0177: 84            DIV AB
+    78  0178: C0 F0         PUSH B
+    79  017A: 12 01 9A      LCALL BCD
+    80                      ;wyświetlenie reszty z dzielenia
+    81  017D: 74 72         MOV A,#'r'
+    82  017F: 12 81 02      LCALL WRITE_DATA
+    83  0182: D0 E0         POP ACC
+    84  0184:           RESULT: ;wyświetlenie wyniku w BCD
+    85  0184: 12 01 9A      LCALL BCD
+    86  0187: 80 FE         SJMP $
+    87                  
+    88                  
+    89                      
+    90                  ;**********************************Funkcje dodatkowe**********************************
+    91  0189:           LICZBA12:
+    92  0189: 12 81 1C      LCALL WAIT_KEY
+    93  018C: 75 F0 0A      MOV B,#10
+    94  018F: A4            MUL AB
+    95  0190: F8            MOV R0,A
+    96  0191: 12 81 1C      LCALL WAIT_KEY
+    97  0194: 28            ADD A,R0
+    98  0195: F8            MOV R0,A
+    99  0196: 12 01 9A      LCALL BCD
+   100  0199: 22            RET
+   101                  
+   102                  
+   103                  
+   104  019A:           BCD:    ;funkcja bcd
+   105                      ; ACC-liczba do zamiany np: 93 albo 255
+   106  019A: F9            MOV R1,A
+   107  019B: 75 F0 64      MOV B,#100
+   108  019E: C3            CLR C
+   109  019F: 95 F0         SUBB A,B
+   110  01A1: 40 17         JC SKIPP
+   111  01A3: E9            MOV A,R1
+   112  01A4: 75 F0 64      MOV B,#100
+   113  01A7: 84            DIV AB
+   114  01A8: C0 E0         PUSH ACC
+   115  01AA: 12 81 04      LCALL WRITE_HEX
+   116  01AD: D0 E0         POP ACC
+   117  01AF: 75 F0 64      MOV B,#100
+   118  01B2: A4            MUL AB
+   119  01B3: F5 F0         MOV B,A
+   120  01B5: E9            MOV A,R1
+   121  01B6: C3            CLR C
+   122  01B7: 95 F0         SUBB A,B
+   123  01B9: F9            MOV R1,A
+   124  01BA:           SKIPP: ;liczba 2 cyfrowa
+   125  01BA: E9            MOV A,R1
+   126  01BB: 75 F0 0A      MOV B,#10
+   127  01BE: 84            DIV AB
+   128  01BF: C4            SWAP A
+   129  01C0: 25 F0         ADD A,B
+   130  01C2: 12 81 04      LCALL WRITE_HEX
+   131  01C5: 22            RET
+   132                  
+   133                  
+   134                  
+   135  01C6:           ZERO_DIV:
+   136  01C6: 74 45         MOV A,#'E'
+   137  01C8: 12 81 02      LCALL WRITE_DATA
+   138  01CB: 74 52         MOV A,#'R'
+   139  01CD: 12 81 02      LCALL WRITE_DATA
+   140  01D0: 74 52         MOV A,#'R'
+   141  01D2: 12 81 02      LCALL WRITE_DATA
+   142  01D5: 74 4F         MOV A,#'O'
+   143  01D7: 12 81 02      LCALL WRITE_DATA
+   144  01DA: 74 52         MOV A,#'R'
+   145  01DC: 12 81 02      LCALL WRITE_DATA
+   146  01DF: 22            RET
